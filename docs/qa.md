@@ -1,10 +1,134 @@
 # QA — Extrator de Vídeos
 
-> **Estado atual: v3** (destino único, uma pasta numerada por vídeo com `audio.mp3`,
-> `video.mp4` sem áudio e `frames/` com 4 JPGs). As seções **v2** e **v1** abaixo são histórico:
-> o comportamento de nomes/pastas de saída delas (`<nome>.mp3` em pastas MP3/MP4 separadas)
-> foi **substituído** pela v3; validação de URL, download, tema e fila local continuam valendo
-> e os testes correspondentes foram migrados para a API v3.
+> **Estado atual: v4** — reestilização visual inspirada em sharkbot.com.br **sem mudança de
+> funcionalidade**. O comportamento validado na **v3** (destino único, uma pasta numerada por
+> vídeo com `audio.mp3`, `video.mp4` sem áudio e `frames/` com 4 JPGs) continua valendo e foi
+> revalidado sobre a UI v4. As seções **v2** e **v1** são histórico.
+
+## v4 — reestilização visual (referência sharkbot.com.br)
+
+Dono: testador (dispatch `ctx_9467e1fc07dc`). Data: 2026-11-13. Estado validado:
+`extractor/ui.py` md5 `d41946db608a50201dcca507b86f3c76` (última alteração do frontend),
+`extractor/engine.py` md5 `55f8ade14613f8088b6c3ea5ca1a01a5` (**intocado** desde a v3),
+`extractor/__init__.py` `d33148457b6002f8e25fa5d068090713`. Hashes de `extractor/` e `tests/`
+idênticos antes e depois da suíte final.
+
+### Resultado final
+
+```
+$ python3 -W always::ResourceWarning -m unittest discover -s tests -v
+Ran 117 tests in 372.550s
+OK (skipped=1)
+```
+
+| Suíte | Tipo | Testes | OK | Falhas | Skips |
+|-------|------|-------:|---:|-------:|------:|
+| `tests/test_engine_real.py` | FFmpeg **real** | 44 | 44 | 0 | 0 |
+| `tests/test_ui_integration.py` | UI na tela real + FFmpeg real | 12 | 12 | 0 | 0 |
+| `tests/test_instagram_url.py` | validação de URL (pura) | 5 | 5 | 0 | 0 |
+| `tests/test_instagram_download.py` | downloader **simulado** + FFmpeg real | 26 | 26 | 0 | 0 |
+| `tests/test_ui_v2.py` | UI real + downloader simulado + FFmpeg real (inclui contraste WCAG) | 14 | 14 | 0 | 0 |
+| `tests/test_ui_v4_visual.py` | **novo** — UI v4 na tela real (layout, estados, foco, tamanhos) | 15 | 15 | 0 | 0 |
+| `tests/test_instagram_live.py` | yt-dlp e Instagram **reais** (opt-in) | 1 | — | — | 1 (pulado sem `VIDEO_EXTRACTOR_LIVE=1`) |
+| **Total** | | **117** | **116** | **0** | **1** |
+
+Nenhum teste existente foi alterado ou afrouxado: os 102 testes da v3 rodaram como estavam
+(inclusive os de contraste WCAG ≥ 4,5:1 de `test_ui_v2`, que passaram com a paleta nova). Depois
+da suíte: 0 `ResourceWarning`, 0 processos `ffmpeg`, 0 processos do yt-dlp falso, 0 pastas
+`video-extractor-ig-*`, 0 arquivos `.part`.
+
+**Regressão FFmpeg real fora da suíte** (`python3 tests/qa_evidence.py <pasta>` no estado final):
+`01 Férias ação.mp4` → `001/` (`audio.mp3` 6,06 s mp3, `video.mp4` 6,00 s h264 sem áudio,
+4 JPGs 160×120 em 0,36/2,36/3,19/5,75 s); `02 corrompido.mp4` → `failed`, sem pasta;
+`03 sem áudio.mp4` → `002/` sem `audio.mp3` com aviso; `04 vp9 opus.webm` → `003/` completo;
+originais intactos (sha256). Instagram simulado (carrossel → uma pasta por vídeo, numeração
+contínua, erros sem pasta) coberto por `test_instagram_download` e `test_ui_v2` acima.
+
+### Referência inspecionada (navegador real)
+
+`https://sharkbot.com.br` aberto no navegador embutido do Orca (1280×900), screenshot
+`docs/qa-screens/v4_referencia_sharkbot.png`; valores por `getComputedStyle` e amostragem de
+pixels: fundo `#050505`/`#000`, cartões `#111111`, bordas branco 8 %, texto branco e
+secundário branco 70 %/50 %, primário azul sólido `#3b82f6` (raio 8–12 px, texto 600),
+secundário “ghost” (transparente + borda fina), pílulas com borda colorida, verde `#22c55e`,
+roxo `#8b5cf6`. Não se copiou marca/conteúdo. Branco sobre `#3b82f6` dá só 3,68:1, por isso
+o app usa `#2563eb` (5,17:1) no fundo do botão com texto e `#3b82f6` só na barra de progresso.
+
+### Avaliação visual (screenshots reais, `ffmpeg -f x11grab -window_id`)
+
+| Critério | Resultado |
+|----------|-----------|
+| Cores | fundo `#050505`, superfícies `#0b0b0c`/`#141416`, texto `#fff`, apoio `#a1a1aa`, azul `#2563eb`/`#60a5fa` — coerente com a referência |
+| Hierarquia / botões | primário azul sólido só em **Baixar e extrair** e **▶ Iniciar fila**; secundários com contorno; ações de fila “ghost”; **Cancelar** com texto vermelho; seções sem cartão com divisória fina e pílula “PASSO N” (como as pílulas da referência) |
+| Contraste | todos os pares texto/fundo ≥ 4,5:1 (menor 5,19:1); texto de botão ≥ 4,5:1 em normal/hover/pressionado/foco; status distintos e ≥ 4,5:1 também sobre a linha selecionada |
+| Foco | contorno `#60a5fa` ≥ 3:1 sobre fundo e superfície (WCAG 1.4.11) em botões e campos |
+| Desabilitado | visivelmente diferente do habilitado (`#71717a`; sobre o azul desabilitado 3,59:1 — WCAG isenta desabilitados) |
+| Tamanho padrão | 1040×820 em tela 1920×1080: nenhum controle/texto cortado, fila com 9 linhas |
+| Tamanho mínimo | 820×680: nenhum controle/texto cortado, fila com 4 linhas, Iniciar/Cancelar visíveis |
+| Tela 1366×768 | Xwayland rootful 1366×768 **real**: janela abre 1040×680 e cabe inteira (sobram 88 px para título/barra do sistema) |
+| Caminhos longos | janela não cresce; destino mostra o **final** do caminho, inclusive depois de redimensionar |
+| Dependências | só biblioteca padrão/Tkinter (verificado por AST); sem imagens/fontes externas nem rede; fontes com fallback |
+
+Arquivos em `docs/qa-screens/`:
+
+- `v4_referencia_sharkbot.png` — referência real (topo da página).
+- `v4_vazia.png` — janela padrão vazia (1040×820).
+- `v4_rodando.png` — processando: “Extraindo frames 75 %”, coluna PASTA `001`, Cancelar ativo.
+- `v4_concluida.png` — fila mista com caminhos longos: `001`, `002`, `003` sem áudio (âmbar), corrompido sem pasta (vermelho), `004`.
+- `v4_minimo_820x680.png` — mesma fila no tamanho mínimo.
+- `v4_tela_1366x768.png` — captura da **tela inteira** 1366×768 com a janela aberta (fila concluída).
+- `v4_tela_1366x768_antes_correcao.png` — evidência do achado F2 (antes da correção).
+- Os screenshots `v3_*` ficam como “antes”.
+
+### Novo teste `tests/test_ui_v4_visual.py` (15)
+
+Layout (7): nenhum botão/checkbutton/label/campo/árvore fora da janela, recortado pelo
+contêiner ou com texto maior que o espaço, no tamanho padrão e no mínimo, com fila vazia e
+com caminhos longos; fila ≥ 5 linhas no padrão e ≥ 4 no mínimo; `minsize` cabe em 1366×768
+(≤ 689 px de altura útil); janela inicial cabe na tela; caminhos longos não aumentam a janela
+e o destino mostra o fim do caminho, inclusive depois de redimensionar. Estados (5): contraste
+do texto dos botões por estado, desabilitado distinguível, foco ≥ 3:1, cores de status,
+hierarquia/coerência com a referência (fundo quase preto, primário azul saturado ≥ 3:1 sobre
+fundo e cartão, diferente dos secundários). Placeholder do link (1): diálogo **real** de pasta
+do Tk com o campo focado não gera exceção e a dica volta. Dependências (2): só stdlib, sem rede
+nem assets pesados. Os testes não amarram nomes de estilo nem cores exatas.
+
+### Achados v4
+
+| # | Severidade | Dono | Descrição | Estado |
+|---|-----------|------|-----------|--------|
+| A1 | média | frontend | (já na v3) no mínimo 820×640 a fila sumia e Iniciar/Cancelar/status ficavam recortados embaixo | corrigido; teste de layout no mínimo passa |
+| A2 | baixa | frontend | (já na v3) textos com `wraplength` fixo cortados na borda direita no mínimo | corrigido (`<Configure>` + textos menores) |
+| A3 | baixa | frontend | (já na v3) destino deixava de mostrar o fim do caminho após redimensionar | corrigido |
+| F1 | média | frontend | placeholder novo do link usava `focus_get()`: com o campo focado, abrir o diálogo real de pasta do Tk gerava `KeyError('__tk_choosedir')` em callback e a dica não voltava | corrigido (foco consultado pelo nome Tcl); teste dedicado passa |
+| F2 | média | frontend | `minsize` 820×720 + título não cabia em 1366×768; janela abria 1040×820 com Iniciar/Cancelar abaixo da borda (evidência Xwayland) | corrigido: mínimo 820×680 e tamanho inicial limitado à tela (1040×680 em 1366×768) |
+| B1/B2 | baixa | frontend (achado do backend) | dica do yt-dlp dizia sempre “não encontrado”; subtítulo prometia MP3 para todo vídeo | corrigidos; textos revisados nos screenshots |
+| v4-1 | info | — | no tamanho mínimo a coluna ARQUIVO corta nomes longos sem reticências; nome completo no detalhe (duplo clique) e na barra de status durante o processamento | aceito (comportamento do Treeview) |
+
+### Limitações v4
+
+- A referência foi inspecionada só no topo da página (hero/cabeçalho): as seções de baixo usam
+  animação ao rolar e não renderizaram na aba de fundo do navegador embutido (screenshots
+  pretos); a paleta das demais seções foi lida do DOM (`getComputedStyle`).
+- 1366×768 foi testado com Xwayland rootful **sem gerenciador de janelas** (sem barra de título
+  real); a margem para título/barra do sistema (88 px) foi calculada, não medida com GNOME/Windows
+  nessa resolução. Escala de DPI ≠ 100 % e Windows/macOS não testados.
+- Contraste medido pelas constantes/estilos ttk e conferido visualmente; não foi feita medição
+  automática por pixel de cada estado (hover/pressionado vistos só nos estilos).
+- Diálogos nativos substituídos nos testes de fluxo (o teste F1 usa o diálogo real do Tk).
+- Instagram real não reexecutado nesta rodada (sem mudança no engine); limitações da v3 valem.
+
+### Como rodar (v4)
+
+```sh
+python3 -m unittest discover -s tests -v              # tudo (ffmpeg + tela)
+python3 -m unittest -v tests.test_ui_v4_visual        # só o visual v4
+python3 tests/qa_evidence.py /tmp/qa-evidencia         # árvore real + ffprobe + sha256
+# tela 1366x768 simulada (abre uma janela Xwayland):
+Xwayland :57 -geometry 1366x768 -decorate & DISPLAY=:57 python3 main.py
+```
+
+---
 
 ## v3 — destino único com pastas numeradas
 

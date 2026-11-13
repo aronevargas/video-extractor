@@ -31,28 +31,42 @@ POLL_MS = 80
 
 # ----------------------------------------------------------------- tema escuro
 # Todas as cores ficam aqui (o QA mede o contraste a partir destas constantes).
+# Referência visual: paleta do site sharkbot.com.br (inspecionada em 2026-11-13; ver
+# docs/ui-visual.md). Quase-preto, painéis sutis, azul como única cor de destaque.
+# Transparências do site (ex.: white/8%) foram convertidas em cores sólidas, pois o Tk não
+# tem alfa.
 COLORS = {
-    "bg": "#121419",            # fundo da janela
-    "surface": "#1b1e25",       # cartões
-    "surface_2": "#262a33",     # botões secundários, cabeçalhos
-    "hover": "#30353f",
-    "pressed": "#3a404c",
-    "field": "#111318",         # campos de texto, lista
-    "border": "#353a45",
-    "text": "#e7e9ee",
-    "muted": "#a2a9b6",         # textos de apoio
-    "disabled": "#6a7180",
-    "accent": "#3366dd",        # botão principal (texto branco)
-    "accent_hover": "#2c5bc8",
-    "accent_pressed": "#264fae",
-    "accent_disabled": "#26314a",
+    "bg": "#050505",            # fundo da janela (--surface-base)
+    "surface": "#0b0b0c",       # lista/painéis (--surface-100)
+    "surface_2": "#141416",     # cabeçalho da lista, botão secundário em hover (white/4%)
+    "hover": "#1a1a1d",         # hover (--surface-300)
+    "pressed": "#232327",
+    "field": "#0e0e10",         # campos de texto
+    "border": "#27272a",        # bordas finas (white/8–10%)
+    "border_strong": "#3f3f46", # borda em hover (white/15–20%)
+    "divider": "#161618",       # linha entre seções (white/5%)
+    "text": "#ffffff",          # --text
+    "text_secondary": "#e5e5e5",
+    "muted": "#a1a1aa",         # --text-muted
+    "disabled": "#71717a",      # --text-disabled
+    "accent": "#2563eb",        # botão principal (--brand-600; brand-500 com texto branco
+    "accent_hover": "#1d4ed8",  #   não atinge 4,5:1, então o fundo usa o tom 600)
+    "accent_pressed": "#1e40af",
+    "accent_disabled": "#111a2e",
     "accent_text": "#ffffff",
-    "focus": "#7aa7ff",         # contorno de foco
-    "select": "#223a63",        # linha selecionada
-    "success": "#4ade80",
-    "warning": "#fbbf24",
-    "error": "#fc8e8e",
-    "info": "#8cc0ff",
+    "brand": "#3b82f6",         # --brand-500: barra de progresso, detalhes não textuais
+    "brand_text": "#60a5fa",    # --brand-400: textos azuis (rótulos de passo, links)
+    "badge_bg": "#0a1426",      # pílula de passo (brand-500 a 10% sobre o fundo)
+    "badge_border": "#16294a",  # (brand-500 a 20%)
+    "focus": "#60a5fa",         # contorno de foco
+    "select": "#152a4a",        # linha selecionada (--brand-900 escurecido)
+    "success": "#34d399",       # emerald-400 (--success)
+    "warning": "#fbbf24",       # amber-400 (--warning)
+    "error": "#f87171",         # red-400 (--danger)
+    "info": "#60a5fa",          # brand-400
+    "danger_bg": "#1a0a0a",     # faixa de aviso (FFmpeg ausente)
+    "danger_border": "#7f1d1d",
+    "danger_text": "#fecaca",
 }
 STATUS_COLORS = {
     "ok": COLORS["success"],
@@ -104,23 +118,41 @@ def short_url(url: str) -> str:
     return text[4:] if text.startswith("www.") else text
 
 
+# Fontes: o site usa Inter (texto) e Space Grotesk (títulos). Usa-se a primeira família
+# instalada; sem nenhuma delas, a fonte padrão do sistema (nada é baixado).
+TEXT_FONTS = ("Inter", "Segoe UI", "SF Pro Text", "Helvetica Neue", "Noto Sans", "Ubuntu",
+              "Cantarell", "DejaVu Sans")
+DISPLAY_FONTS = ("Space Grotesk", "Inter", "Segoe UI Semibold", "SF Pro Display",
+                 "Helvetica Neue", "Noto Sans", "Ubuntu", "DejaVu Sans")
+
+
+def _pick_family(root: tk.Tk, wanted, fallback: str) -> str:
+    try:
+        available = set(tkfont.families(root))
+    except tk.TclError:
+        return fallback
+    return next((f for f in wanted if f in available), fallback)
+
+
 def apply_dark_theme(root: tk.Tk) -> dict:
-    """Configura o tema escuro (ttk 'clam' + banco de opções para diálogos Tk)."""
+    """Tema escuro inspirado em sharkbot.com.br (ttk 'clam' + banco de opções dos diálogos)."""
     c = COLORS
     base = tkfont.nametofont("TkDefaultFont")
-    base.configure(size=10)
+    fam = _pick_family(root, TEXT_FONTS, base.cget("family"))
+    display = _pick_family(root, DISPLAY_FONTS, fam)
+    base.configure(family=fam, size=10)
     for name in ("TkTextFont", "TkMenuFont", "TkHeadingFont"):
         try:
-            tkfont.nametofont(name).configure(family=base.cget("family"), size=10)
+            tkfont.nametofont(name).configure(family=fam, size=10)
         except tk.TclError:
             pass
-    fam = base.cget("family")
     fonts = {
-        "title": tkfont.Font(root, family=fam, size=18, weight="bold"),
-        "section": tkfont.Font(root, family=fam, size=11, weight="bold"),
-        "step": tkfont.Font(root, family=fam, size=10, weight="bold"),
+        "title": tkfont.Font(root, family=display, size=18, weight="bold"),
+        "section": tkfont.Font(root, family=display, size=12, weight="bold"),
+        "step": tkfont.Font(root, family=fam, size=8, weight="bold"),
         "button": tkfont.Font(root, family=fam, size=10, weight="bold"),
         "small": tkfont.Font(root, family=fam, size=9),
+        "heading": tkfont.Font(root, family=fam, size=8, weight="bold"),
     }
 
     root.configure(background=c["bg"])
@@ -140,93 +172,108 @@ def apply_dark_theme(root: tk.Tk) -> dict:
     style = ttk.Style(root)
     style.theme_use("clam")
     style.configure(".", background=c["bg"], foreground=c["text"], fieldbackground=c["field"],
-                    bordercolor=c["border"], lightcolor=c["surface_2"], darkcolor=c["surface_2"],
+                    bordercolor=c["border"], lightcolor=c["bg"], darkcolor=c["bg"],
                     troughcolor=c["field"], focuscolor=c["focus"], selectbackground=c["select"],
                     selectforeground=c["text"], insertcolor=c["text"], arrowcolor=c["muted"],
                     font=base)
     style.map(".", foreground=[("disabled", c["disabled"])])
 
-    # Fundos
+    # Fundos: seções sem cartão (como as seções do site), separadas por uma linha fina.
     style.configure("TFrame", background=c["bg"])
-    style.configure("Card.TFrame", background=c["surface"], bordercolor=c["border"],
-                    relief="solid", borderwidth=1)
-    style.configure("Inner.TFrame", background=c["surface"])
+    style.configure("Inner.TFrame", background=c["bg"])
+    style.configure("Card.TFrame", background=c["bg"])
+    style.configure("Divider.TFrame", background=c["divider"])
     style.configure("TLabel", background=c["bg"], foreground=c["text"])
     style.configure("Title.TLabel", font=fonts["title"])
     style.configure("Subtitle.TLabel", foreground=c["muted"])
-    style.configure("Section.TLabel", background=c["surface"], font=fonts["section"])
-    style.configure("Step.TLabel", background=c["accent"], foreground=c["accent_text"],
-                    font=fonts["step"], anchor="center", padding=(7, 1))
-    style.configure("Card.TLabel", background=c["surface"], foreground=c["text"])
-    style.configure("Muted.TLabel", background=c["surface"], foreground=c["muted"],
-                    font=fonts["small"])
-    style.configure("Warn.TLabel", background=c["surface"], foreground=c["warning"],
-                    font=fonts["small"])
-    style.configure("Status.TLabel", background=c["surface"], foreground=c["muted"])
-    style.configure("Banner.TFrame", background="#3a1d22", bordercolor=c["error"],
+    style.configure("Section.TLabel", background=c["bg"], font=fonts["section"])
+    # Pílula de passo: azul claro sobre azul a 10%, borda a 20% (como "RECURSOS" no site).
+    style.configure("Step.TLabel", background=c["badge_bg"], foreground=c["brand_text"],
+                    bordercolor=c["badge_border"], relief="solid", borderwidth=1,
+                    font=fonts["step"], anchor="center", padding=(8, 2))
+    style.configure("Card.TLabel", background=c["bg"], foreground=c["text_secondary"])
+    style.configure("Muted.TLabel", background=c["bg"], foreground=c["muted"], font=fonts["small"])
+    style.configure("Placeholder.TLabel", background=c["field"], foreground=c["muted"])
+    style.configure("Warn.TLabel", background=c["bg"], foreground=c["warning"], font=fonts["small"])
+    style.configure("Status.TLabel", background=c["bg"], foreground=c["muted"])
+    style.configure("Banner.TFrame", background=c["danger_bg"], bordercolor=c["danger_border"],
                     relief="solid", borderwidth=1)
-    style.configure("Banner.TLabel", background="#3a1d22", foreground="#ffd7d7")
+    style.configure("Banner.TLabel", background=c["danger_bg"], foreground=c["danger_text"])
 
     # Botões
-    style.configure("TButton", background=c["surface_2"], foreground=c["text"],
-                    bordercolor=c["border"], lightcolor=c["surface_2"], darkcolor=c["surface_2"],
-                    padding=(12, 6), relief="flat", focusthickness=1, focuscolor=c["focus"])
+    # Secundário (padrão): fundo transparente com contorno fino, como "Ver Demonstração".
+    style.configure("TButton", background=c["bg"], foreground=c["text"],
+                    bordercolor=c["border"], lightcolor=c["bg"], darkcolor=c["bg"],
+                    padding=(14, 6), relief="solid", borderwidth=1, focusthickness=0)
     style.map("TButton",
-              background=[("disabled", c["surface"]), ("pressed", c["pressed"]),
-                          ("active", c["hover"])],
+              background=[("disabled", c["bg"]), ("pressed", c["pressed"]), ("active", c["surface_2"])],
               foreground=[("disabled", c["disabled"])],
-              bordercolor=[("focus", c["focus"]), ("disabled", c["surface_2"])],
-              lightcolor=[("pressed", c["pressed"]), ("active", c["hover"])],
-              darkcolor=[("pressed", c["pressed"]), ("active", c["hover"])])
+              bordercolor=[("focus", c["focus"]), ("disabled", c["divider"]),
+                           ("active", c["border_strong"])],
+              lightcolor=[("pressed", c["pressed"]), ("active", c["surface_2"])],
+              darkcolor=[("pressed", c["pressed"]), ("active", c["surface_2"])])
+    # Principal: azul sólido, texto branco em negrito ("Criar Conta").
     style.configure("Accent.TButton", background=c["accent"], foreground=c["accent_text"],
                     bordercolor=c["accent"], lightcolor=c["accent"], darkcolor=c["accent"],
-                    font=fonts["button"], padding=(18, 8))
+                    font=fonts["button"], padding=(20, 9))
     style.map("Accent.TButton",
               background=[("disabled", c["accent_disabled"]), ("pressed", c["accent_pressed"]),
                           ("active", c["accent_hover"])],
               foreground=[("disabled", c["disabled"])],
-              bordercolor=[("focus", c["focus"]), ("disabled", c["accent_disabled"])],
+              bordercolor=[("focus", c["focus"]), ("disabled", c["accent_disabled"]),
+                           ("pressed", c["accent_pressed"]), ("active", c["accent_hover"])],
               lightcolor=[("disabled", c["accent_disabled"]), ("pressed", c["accent_pressed"]),
                           ("active", c["accent_hover"])],
               darkcolor=[("disabled", c["accent_disabled"]), ("pressed", c["accent_pressed"]),
                          ("active", c["accent_hover"])])
+    # Discreto: só texto cinza que clareia no hover (links do menu do site). Sem borda até ter foco.
+    style.configure("Ghost.TButton", background=c["bg"], foreground=c["muted"],
+                    bordercolor=c["bg"], lightcolor=c["bg"], darkcolor=c["bg"], padding=(10, 6))
+    style.map("Ghost.TButton",
+              background=[("disabled", c["bg"]), ("pressed", c["pressed"]), ("active", c["surface_2"])],
+              foreground=[("disabled", c["disabled"]), ("active", c["text"])],
+              bordercolor=[("focus", c["focus"]), ("disabled", c["bg"]), ("active", c["surface_2"])],
+              lightcolor=[("active", c["surface_2"])], darkcolor=[("active", c["surface_2"])])
     style.configure("Danger.TButton", foreground=c["error"])
-    style.map("Danger.TButton", foreground=[("disabled", c["disabled"])])
+    style.map("Danger.TButton", foreground=[("disabled", c["disabled"])],
+              bordercolor=[("focus", c["focus"]), ("disabled", c["divider"]), ("active", c["error"])])
 
     # Campos
     style.configure("TEntry", fieldbackground=c["field"], foreground=c["text"],
                     bordercolor=c["border"], lightcolor=c["field"], darkcolor=c["field"],
-                    padding=(8, 6), insertcolor=c["text"])
+                    padding=(10, 7), insertcolor=c["text"])
     style.map("TEntry",
-              bordercolor=[("focus", c["focus"])],
+              bordercolor=[("focus", c["focus"]), ("hover", c["border_strong"])],
               lightcolor=[("focus", c["focus"])],
-              fieldbackground=[("readonly", c["field"]), ("disabled", c["surface"])],
+              fieldbackground=[("readonly", c["field"]), ("disabled", c["bg"])],
               foreground=[("disabled", c["disabled"])])
-    style.configure("TCheckbutton", background=c["surface"], foreground=c["text"],
+    style.configure("TCheckbutton", background=c["bg"], foreground=c["muted"],
                     indicatorbackground=c["field"], indicatorforeground=c["accent_text"],
-                    indicatormargin=(0, 0, 8, 0), padding=(2, 4))
+                    indicatormargin=(0, 0, 8, 0), padding=(2, 4), upperbordercolor=c["border"],
+                    lowerbordercolor=c["border"])
     style.map("TCheckbutton",
-              background=[("active", c["surface"])],
-              indicatorbackground=[("disabled", c["surface_2"]), ("selected", c["accent"])],
-              foreground=[("disabled", c["disabled"])])
+              background=[("active", c["bg"])],
+              foreground=[("disabled", c["disabled"]), ("active", c["text"]), ("selected", c["text"])],
+              indicatorbackground=[("disabled", c["bg"]), ("selected", c["accent"])])
 
     # Lista
-    style.configure("Treeview", background=c["field"], fieldbackground=c["field"],
-                    foreground=c["text"], bordercolor=c["border"], lightcolor=c["field"],
-                    darkcolor=c["field"], rowheight=28)
+    style.configure("Treeview", background=c["surface"], fieldbackground=c["surface"],
+                    foreground=c["text_secondary"], bordercolor=c["border"],
+                    lightcolor=c["surface"], darkcolor=c["surface"], rowheight=26)
     style.map("Treeview", background=[("selected", c["select"])],
               foreground=[("selected", c["text"])])
     style.configure("Treeview.Heading", background=c["surface_2"], foreground=c["muted"],
                     bordercolor=c["border"], lightcolor=c["surface_2"], darkcolor=c["surface_2"],
-                    relief="flat", padding=(8, 5), font=fonts["small"])
-    style.map("Treeview.Heading", background=[("active", c["hover"])])
-    style.configure("Vertical.TScrollbar", background=c["surface_2"], troughcolor=c["field"],
-                    bordercolor=c["field"], lightcolor=c["surface_2"], darkcolor=c["surface_2"],
+                    relief="flat", padding=(10, 7), font=fonts["heading"])
+    style.map("Treeview.Heading", background=[("active", c["hover"])],
+              foreground=[("active", c["text"])])
+    style.configure("Vertical.TScrollbar", background=c["surface_2"], troughcolor=c["surface"],
+                    bordercolor=c["surface"], lightcolor=c["surface_2"], darkcolor=c["surface_2"],
                     arrowcolor=c["muted"])
     style.map("Vertical.TScrollbar", background=[("active", c["hover"])])
-    style.configure("Horizontal.TProgressbar", background=c["accent"], troughcolor=c["field"],
-                    bordercolor=c["border"], lightcolor=c["accent"], darkcolor=c["accent"],
-                    thickness=10)
+    style.configure("Horizontal.TProgressbar", background=c["brand"], troughcolor=c["hover"],
+                    bordercolor=c["hover"], lightcolor=c["brand"], darkcolor=c["brand"],
+                    thickness=6)
     return fonts
 
 
@@ -245,9 +292,12 @@ class FolderPicker(ttk.Frame):
         self.entry.grid(row=0, column=1, sticky="ew")
         self.button = ttk.Button(self, text="Escolher pasta…", command=self.choose)
         self.button.grid(row=0, column=2, padx=(8, 0))
-        self.open_button = ttk.Button(self, text="Abrir", command=self.open)
+        self.open_button = ttk.Button(self, text="Abrir", style="Ghost.TButton", command=self.open)
         self.open_button.grid(row=0, column=3, padx=(6, 0))
         self.columnconfigure(1, weight=1)
+        # Após redimensionar, volta a mostrar o fim do caminho (nome da pasta).
+        self.entry.bind("<Configure>", lambda _e: self.path.get() and self.entry.xview_moveto(1.0),
+                        add="+")
         self.path.trace_add("write", lambda *_: self._sync_placeholder())
         self._sync_placeholder()
 
@@ -314,8 +364,12 @@ class App:
         self.closing = False
 
         root.title(APP_TITLE)
-        root.minsize(820, 640)
-        root.geometry("1040x820")
+        # Mínimo cabe na área útil de uma tela 1366x768 (com barra de título e painel do sistema).
+        # A altura inicial também respeita telas baixas: 820 px ou a altura da tela menos 100.
+        root.minsize(820, 680)
+        width = min(1040, max(820, root.winfo_screenwidth() - 80))
+        height = min(820, max(680, root.winfo_screenheight() - 100))
+        root.geometry(f"{width}x{height}")
         self.fonts = apply_dark_theme(root)
         self._build()
         self._refresh_buttons()
@@ -325,34 +379,50 @@ class App:
         root.after(80, self.check_downloader)
 
     # ------------------------------------------------------------------ layout
+    @staticmethod
+    def _auto_wrap(label: ttk.Label, margin: int = 8) -> None:
+        """Quebra o texto conforme a largura disponível (janelas menores não cortam texto)."""
+        label.master.bind("<Configure>", lambda e: label.configure(
+            wraplength=max(200, e.width - margin)), add="+")
+
     def _card(self, parent, row: int, step: str, title: str, expand: bool = False) -> ttk.Frame:
-        card = ttk.Frame(parent, style="Card.TFrame", padding=(16, 10, 16, 12))
+        """Seção sem cartão: linha divisória fina, pílula 'PASSO N', título e conteúdo."""
+        card = ttk.Frame(parent, style="Card.TFrame")
         card.grid(row=row, column=0, sticky="nsew", pady=(10, 0))
         if expand:
             parent.rowconfigure(row, weight=1)
         card.columnconfigure(0, weight=1)
+        ttk.Frame(card, style="Divider.TFrame", height=1).grid(row=0, column=0, sticky="ew",
+                                                               pady=(0, 12))
         head = ttk.Frame(card, style="Inner.TFrame")
-        head.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        ttk.Label(head, text=step, style="Step.TLabel").pack(side="left")
-        ttk.Label(head, text=title, style="Section.TLabel").pack(side="left", padx=(10, 0))
+        head.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        ttk.Label(head, text=f"PASSO {step}", style="Step.TLabel").pack(side="left")
+        ttk.Label(head, text=title, style="Section.TLabel").pack(side="left", padx=(12, 0))
         body = ttk.Frame(card, style="Inner.TFrame")
-        body.grid(row=1, column=0, sticky="nsew")
-        card.rowconfigure(1, weight=1)
+        body.grid(row=2, column=0, sticky="nsew")
+        card.rowconfigure(2, weight=1)
         body.columnconfigure(0, weight=1)
-        body.header = head  # type: ignore[attr-defined]  # para ações no cabeçalho do cartão
+        body.header = head  # type: ignore[attr-defined]  # para ações no cabeçalho da seção
         return body
 
     def _build(self) -> None:
-        outer = ttk.Frame(self.root, padding=(20, 16, 20, 18))
+        outer = ttk.Frame(self.root, padding=(28, 18, 28, 18))
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
 
         header = ttk.Frame(outer)
         header.grid(row=0, column=0, sticky="ew")
-        ttk.Label(header, text=APP_TITLE, style="Title.TLabel").pack(anchor="w")
-        ttk.Label(header, style="Subtitle.TLabel",
-                  text="Para cada vídeo: áudio em MP3, vídeo MP4 sem áudio e 4 frames, "
-                       "numa pasta numerada. Os originais nunca são alterados.").pack(anchor="w", pady=(2, 0))
+        title = ttk.Frame(header)
+        title.pack(anchor="w")
+        # Título com a segunda palavra em azul (destaque usado nos títulos do site).
+        ttk.Label(title, text="Extrator de", style="Title.TLabel").pack(side="left")
+        ttk.Label(title, text="Vídeos", style="Title.TLabel",
+                  foreground=COLORS["brand_text"]).pack(side="left", padx=(6, 0))
+        subtitle = ttk.Label(header, style="Subtitle.TLabel", justify="left",
+                  text="Cada vídeo vira uma pasta numerada: MP3 (se tiver som), vídeo sem áudio e "
+                       "4 frames. Originais intactos.")
+        subtitle.pack(anchor="w", pady=(2, 0), fill="x")
+        self._auto_wrap(subtitle)
 
         # Aviso de FFmpeg ausente (só aparece quando necessário).
         self.dep_frame = ttk.Frame(outer, style="Banner.TFrame", padding=(12, 8))
@@ -360,6 +430,7 @@ class App:
         self.dep_label = ttk.Label(self.dep_frame, text="", style="Banner.TLabel",
                                    wraplength=760, justify="left")
         self.dep_label.grid(row=0, column=0, sticky="w")
+        self._auto_wrap(self.dep_label, 200)
         self.dep_retry = ttk.Button(self.dep_frame, text="Verificar novamente",
                                     command=self.check_dependencies)
 
@@ -375,34 +446,42 @@ class App:
         self.chk_recursive = ttk.Checkbutton(local, text="Incluir subpastas", variable=self.recursive)
         self.chk_recursive.pack(side="left", padx=(4, 0))
 
-        ttk.Label(add, text="Ou cole o link de um post/reel público do Instagram:",
-                  style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=(10, 6))
         link = ttk.Frame(add, style="Inner.TFrame")
-        link.grid(row=2, column=0, sticky="ew")
+        link.grid(row=2, column=0, sticky="ew", pady=(10, 0))
         link.columnconfigure(0, weight=1)
         self.url_var = tk.StringVar()
         self.url_entry = ttk.Entry(link, textvariable=self.url_var)
         self.url_entry.grid(row=0, column=0, sticky="ew")
         self.url_entry.bind("<Return>", lambda _e: self.submit_url())
         self.url_entry.bind("<KP_Enter>", lambda _e: self.submit_url())
+        # Dica dentro do campo vazio (rótulo sobreposto; url_var continua vazio).
+        self.url_placeholder = ttk.Label(link, style="Placeholder.TLabel",
+                                         text="…ou cole o link de um post/reel público do Instagram")
+        self.url_placeholder.bind("<Button-1>", lambda _e: self.url_entry.focus_set())
+        for ev in ("<FocusIn>", "<FocusOut>"):
+            self.url_entry.bind(ev, lambda _e: self._sync_url_placeholder(), add="+")
         self.btn_link = ttk.Button(link, text="Baixar e extrair", style="Accent.TButton",
                                    command=self.submit_url)
         self.btn_link.grid(row=0, column=1, padx=(8, 0))
-        self.url_var.trace_add("write", lambda *_: self._refresh_buttons())
+        self.url_var.trace_add("write", lambda *_: (self._refresh_buttons(),
+                                                    self._sync_url_placeholder()))
         self.link_hint = ttk.Label(add, style="Muted.TLabel", wraplength=860, justify="left",
                                    text="Verificando o yt-dlp…")
         self.link_hint.grid(row=3, column=0, sticky="w", pady=(6, 0))
+        self._auto_wrap(self.link_hint)
+        self._sync_url_placeholder()
 
         # 2. Destino
         out = self._card(outer, 3, "2", "Pasta de destino")
         self.out_picker = FolderPicker(out, "Salvar em", "Pasta de destino dos resultados",
                                        on_change=self._refresh_buttons)
         self.out_picker.grid(row=0, column=0, sticky="ew")
-        ttk.Label(out, style="Muted.TLabel", wraplength=900, justify="left",
-                  text="Cada vídeo ganha uma pasta numerada (001, 002, …) com  audio.mp3  ·  "
-                       "video.mp4 (sem áudio)  ·  frames/ (4 imagens de momentos aleatórios). "
-                       "Pastas que já existem nunca são sobrescritas: a numeração continua."
-                  ).grid(row=1, column=0, sticky="w", pady=(8, 0))
+        dest_hint = ttk.Label(out, style="Muted.TLabel", wraplength=900, justify="left",
+                  text="Pastas 001, 002, … com audio.mp3 (se houver som) · video.mp4 sem áudio · "
+                       "frames/ (4 imagens). Nada é sobrescrito."
+                  )
+        dest_hint.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self._auto_wrap(dest_hint)
 
         # 3. Fila
         q = self._card(outer, 4, "3", "Fila e andamento", expand=True)
@@ -434,19 +513,21 @@ class App:
         self.empty_hint.grid(row=1, column=0, sticky="w", pady=(6, 0))
 
         # Ações da fila no cabeçalho do cartão (economiza uma linha para a lista).
-        self.btn_clear = ttk.Button(q.header, text="Limpar fila", command=self.clear_queue)
+        self.btn_clear = ttk.Button(q.header, text="Limpar fila", style="Ghost.TButton",
+                                    command=self.clear_queue)
         self.btn_clear.pack(side="right")
-        self.btn_remove = ttk.Button(q.header, text="Remover selecionados", command=self.remove_selected)
-        self.btn_remove.pack(side="right", padx=(0, 8))
+        self.btn_remove = ttk.Button(q.header, text="Remover selecionados", style="Ghost.TButton",
+                                     command=self.remove_selected)
+        self.btn_remove.pack(side="right", padx=(0, 2))
         self.btn_open_item = ttk.Button(q.header, text="Abrir pasta do item",
                                         command=self.open_selected_folder)
-        self.btn_open_item.pack(side="right", padx=(0, 8))
+        self.btn_open_item.pack(side="right", padx=(0, 6))
 
         run = ttk.Frame(q, style="Inner.TFrame")
-        run.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        run.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(14, 0))
         run.columnconfigure(0, weight=1)
         self.progress = ttk.Progressbar(run, mode="determinate", maximum=100)
-        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 14))
+        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 18))
         self.status = tk.StringVar(value="Pronto.")
         ttk.Label(run, textvariable=self.status, style="Status.TLabel").grid(
             row=1, column=0, sticky="w", pady=(6, 0))
@@ -456,6 +537,21 @@ class App:
                                     command=self.start)
         self.btn_start.grid(row=0, column=2, rowspan=2)
         self._indeterminate = False
+
+    def _url_entry_focused(self) -> bool:
+        # Consulta o foco direto no Tcl: focus_get() levanta KeyError quando o foco está num
+        # widget puramente Tcl (ex.: diálogo nativo de pastas do Tk, "__tk_choosedir").
+        try:
+            return str(self.root.tk.call("focus")) == str(self.url_entry)
+        except tk.TclError:
+            return False
+
+    def _sync_url_placeholder(self) -> None:
+        focused = self._url_entry_focused()
+        if self.url_var.get() or focused:
+            self.url_placeholder.place_forget()
+        else:
+            self.url_placeholder.place(in_=self.url_entry, x=11, rely=0.5, anchor="w")
 
     # ------------------------------------------------------------ dependências
     def check_dependencies(self) -> None:
@@ -474,7 +570,7 @@ class App:
         else:
             self.dep_label.configure(text="⚠ " + (msg or "FFmpeg/FFprobe não encontrados.")
                                      + "\nDepois de instalar, clique em “Verificar novamente”.")
-            self.dep_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+            self.dep_frame.grid(row=1, column=0, sticky="ew", pady=(12, 0))
             self.dep_retry.grid(row=0, column=1, padx=(10, 0), sticky="ne")
             self.status.set("FFmpeg não encontrado — instale-o para processar vídeos.")
         self._refresh_buttons()
@@ -501,13 +597,13 @@ class App:
         if ok:
             self.link_hint.configure(
                 style="Muted.TLabel",
-                text="O vídeo é baixado e enviado para a fila automaticamente, "
-                     "numa pasta numerada dentro da pasta de destino (passo 2). Só links públicos (sem login).")
+                text="Baixa e entra na fila sozinho, com a mesma pasta de destino. "
+                     "Só links públicos, sem login.")
         else:
             self.link_hint.configure(
                 style="Warn.TLabel",
-                text="⚠ Links do Instagram: " + (message or "yt-dlp não encontrado. Instale com: "
-                                                 "python3 -m pip install -U yt-dlp"))
+                text="⚠ Links indisponíveis: yt-dlp ausente ou com erro. Arquivos locais funcionam; "
+                     "cole um link para ver detalhes.")
         self._refresh_buttons()
 
     # ------------------------------------------------------------------- fila
