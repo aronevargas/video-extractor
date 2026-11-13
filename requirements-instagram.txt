@@ -1,0 +1,13 @@
+# Dependência OPCIONAL — necessária apenas para a opção "link do Instagram".
+# Arquivos locais funcionam sem ela. Requer Python 3.11+ (exigência do yt-dlp atual).
+#
+# Instalação isolada recomendada (Linux/macOS):
+#   python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-instagram.txt
+#   .venv/bin/python main.py
+# Windows:
+#   py -m venv .venv && .venv\Scripts\python -m pip install -r requirements-instagram.txt
+#   .venv\Scripts\python main.py
+#
+# O app encontra o yt-dlp: env VIDEO_EXTRACTOR_YTDLP > "yt-dlp" no PATH > módulo yt_dlp do Python em uso.
+# O Instagram muda com frequência; mantenha atualizado: python -m pip install -U -r requirements-instagram.txt
+yt-dlp>=2026.10.26
